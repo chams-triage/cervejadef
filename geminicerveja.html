@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Custo-Benefício: Cervejas</title>
+    <style>
+        :root {
+            --primary: #f39c12;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+            --success: #27ae60;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h2 { text-align: center; color: var(--dark); margin-bottom: 1.5rem; }
+
+        .brand-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .brand-name { width: 100px; font-weight: bold; font-size: 0.9rem; }
+
+        select, input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            outline: none;
+        }
+
+        select { flex: 1; }
+        input { width: 80px; text-align: right; }
+
+        .btn-calc {
+            width: 100%;
+            padding: 15px;
+            background: var(--success);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        /* Modal Styles */
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 90%;
+            width: 400px;
+            position: relative;
+            text-align: center;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px; right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .result-highlight {
+            font-size: 1.4rem;
+            margin: 20px 0;
+            line-height: 1.4;
+        }
+
+        .winner {
+            color: var(--success);
+            display: block;
+            margin-top: 10px;
+        }
+
+        .comparison-details {
+            font-size: 0.9rem;
+            color: #666;
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn-continue {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Comparador de Cerveja 🍻</h2>
+    <div id="brands-container"></div>
+    <button class="btn-calc" onclick="calculate()">CALCULAR MELHOR PREÇO</button>
+</div>
+
+<div id="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        <div id="result-body"></div>
+        <button class="btn-continue" onclick="closeModal()">CONTINUAR COMPARANDO</button>
+    </div>
+</div>
+
+<script>
+    const brands = ["Brahma", "Skol", "Heineken", "Eisenbahn", "Original"];
+    const sizes = [
+        { label: "Não disponível", val: 0 },
+        { label: "Lata 269ml", val: 269 },
+        { label: "Garrafa 300ml", val: 300 },
+        { label: "Lata 350ml", val: 350 },
+        { label: "Lata 473ml", val: 473 }
+    ];
+
+    const container = document.getElementById('brands-container');
+
+    // Gerar campos dinamicamente
+    brands.forEach(brand => {
+        const row = document.createElement('div');
+        row.className = 'brand-row';
+        
+        let options = sizes.map(s => `<option value="${s.val}">${s.label}</option>`).join('');
+        
+        row.innerHTML = `
+            <div class="brand-name">${brand}</div>
+            <select id="ml-${brand}">${options}</select>
+            <input type="text" id="price-${brand}" placeholder="R$ 0,00" oninput="formatMoney(this)">
+        `;
+        container.appendChild(row);
+    });
+
+    // Máscara de dinheiro automática
+    function formatMoney(input) {
+        let value = input.value.replace(/\D/g, "");
+        value = (value / 100).toFixed(2) + "";
+        value = value.replace(".", ",");
+        input.value = value;
+    }
+
+    function calculate() {
+        let results = [];
+
+        brands.forEach(brand => {
+            const ml = parseFloat(document.getElementById(`ml-${brand}`).value);
+            const priceStr = document.getElementById(`price-${brand}`).value.replace(",", ".");
+            const price = parseFloat(priceStr);
+
+            if (ml > 0 && price > 0) {
+                const costPerMl = price / ml;
+                results.push({
+                    brand: brand,
+                    ml: ml,
+                    price: price,
+                    costPerMl: costPerMl
+                });
+            }
+        });
+
+        if (results.length < 1) {
+            alert("Por favor, preencha pelo menos uma marca com preço.");
+            return;
+        }
+
+        // Ordenar por custo benefício (menor custo por ml primeiro)
+        results.sort((a, b) => a.costPerMl - b.costPerMl);
+
+        displayResult(results);
+    }
+
+    function displayResult(res) {
+        const winner = res[0];
+        const modal = document.getElementById('modal');
+        const body = document.getElementById('result-body');
+
+        let comparisonText = "";
+        if (res.length > 1) {
+            const second = res[1];
+            const diff = (((second.costPerMl - winner.costPerMl) / second.costPerMl) * 100).toFixed(1);
+            comparisonText = `Comparado a ${second.brand} (${second.ml}ml), a economia é de aproximadamente ${diff}% por ml.`;
+        } else {
+            comparisonText = "Adicione mais marcas para comparar a diferença de preço.";
+        }
+
+        body.innerHTML = `
+            <h3>Resultado da Análise</h3>
+            <div class="result-highlight">
+                O melhor custo-benefício é:<br>
+                <b class="winner"><strong>${winner.brand.toUpperCase()} (${winner.ml}ML)</strong></b>
+            </div>
+            <div class="comparison-details">
+                ${comparisonText}<br><br>
+                Preço por ML: R$ ${winner.costPerMl.toFixed(4).replace(".", ",")}
+            </div>
+        `;
+
+        modal.style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('modal').style.display = 'none';
+    }
+</script>
+
+</body>
+</html>
